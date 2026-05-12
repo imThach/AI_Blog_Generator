@@ -15,29 +15,53 @@ export default function EditorPage() {
     const handleGenerate = async () => {
         if (!topic.trim()) return;
         setIsLoading(true);
-        try {
-            const response = await fetch("/api", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ topic }),
-            });
-            const data = await response.json();
-            if (response.ok) {
-                setContent(data.content);
-                addItem({
-                    id: Date.now(),
-                    title: topic,
-                    content: data.content,
-                    date: new Date().toISOString()
+
+        const maxRetries = 2;
+        let attempt = 0;
+
+        while (attempt <= maxRetries) {
+            try {
+                const response = await fetch("/api", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ topic }),
                 });
-            } else {
+                const data = await response.json();
+
+                if (response.ok) {
+                    setContent(data.content);
+                    addItem({
+                        id: Date.now(),
+                        title: topic,
+                        content: data.content,
+                        date: new Date().toISOString()
+                    });
+                    break;
+                }
+                const isRateLimitOrServerError = response.status === 429 || response.status === 500;
+
+                if (isRateLimitOrServerError && attempt < maxRetries) {
+                    // Tăng thời gian chờ sau mỗi lần thử lại (1s, 2s...)
+                    const delay = Math.pow(2, attempt) * 1000;
+                    await new Promise((resolve) => setTimeout(resolve, delay));
+                    attempt++;
+                    continue;
+                }
+
                 alert(data.error || "Có lỗi xảy ra trong quá trình tạo nội dung.");
+                break;
+            } catch (error) {
+                if (attempt < maxRetries) {
+                    const delay = Math.pow(2, attempt) * 1000;
+                    await new Promise((resolve) => setTimeout(resolve, delay));
+                    attempt++;
+                    continue;
+                }
+                alert("Lỗi kết nối server");
+                break;
             }
-        } catch (error) {
-            alert("Lỗi kết nối server");
-        } finally {
-            setIsLoading(false);
         }
+        setIsLoading(false);
     };
 
     const copyToClipboard = () => {
