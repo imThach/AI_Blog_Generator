@@ -4,21 +4,12 @@ import { useEffect, useState } from "react";
 import { Eye, Trash2, X } from "lucide-react";
 import BlogModal from "../../components/BlogModal";
 import LottieAnimation from "../../components/LottieAnimation";
+import { useLocalStorage } from "../../hooks/useLocalStorage";
+import { BlogHistoryItem } from "../edit/page";
 
 export default function HistoryPage() {
-    const [history, setHistory] = useState([]);
-
-    useEffect(() => {
-        const saved = JSON.parse(localStorage.getItem("blog_history") || "[]");
-        setHistory(saved);
-    }, []);
-
-    const deleteItem = (id: number) => {
-        const updated = history.filter((item: any) => item.id !== id);
-        setHistory(updated);
-        localStorage.setItem("blog_history", JSON.stringify(updated));
-    };
-    const [selectedBlog, setSelectedBlog] = useState<any>(null);
+    const { data: history, removeItem: deleteItem } = useLocalStorage<BlogHistoryItem>("blog_history");
+    const [selectedBlog, setSelectedBlog] = useState<BlogHistoryItem | null>(null);
     const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
     const [showDelete, setShowDelete] = useState(false);
     const [renderDeleteId, setRenderDeleteId] = useState<number | null>(null);
@@ -45,7 +36,7 @@ export default function HistoryPage() {
             <h1 className="text-3xl font-bold mb-5 dark:text-white">Hi, here is your history</h1>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {history.map((item: any) => (
+                {history.map((item) => (
                     <div key={item.id} className="bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 p-6 rounded-3xl shadow-sm hover:shadow-md transition-all duration-300">
                         <h3 className="text-2xl font-bold mb-3 capitalize font-geist dark:text-white">{item.title}</h3>
                         <p className="line-clamp-3 mb-5 text-sm leading-relaxed dark:text-gray-300">

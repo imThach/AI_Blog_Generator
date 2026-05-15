@@ -5,63 +5,35 @@ import { Copy, Download, Loader2, FileText } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import toast from "react-hot-toast";
 import { useLocalStorage } from "../../hooks/useLocalStorage";
+import { useGenerateBlog } from "../../hooks/useGenerateBlog";
+
+export interface BlogHistoryItem {
+    id: number;
+    title: string;
+    content: string;
+}
 
 export default function EditorPage() {
     const [topic, setTopic] = useState("");
     const [content, setContent] = useState("");
-    const [isLoading, setIsLoading] = useState(false);
-    const { addItem } = useLocalStorage("blog_history");
+    const { addItem } = useLocalStorage<BlogHistoryItem>("blog_history");
+    const { generate, isLoading } = useGenerateBlog();
 
     const handleGenerate = async () => {
         if (!topic.trim()) return;
-        setIsLoading(true);
 
-        const maxRetries = 2;
-        let attempt = 0;
+        const { content: generatedContent, error } = await generate(topic);
 
-        while (attempt <= maxRetries) {
-            try {
-                const response = await fetch("/api", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ topic }),
-                });
-                const data = await response.json();
-
-                if (response.ok) {
-                    setContent(data.content);
-                    addItem({
-                        id: Date.now(),
-                        title: topic,
-                        content: data.content,
-                        date: new Date().toISOString()
-                    });
-                    break;
-                }
-                const isRateLimitOrServerError = response.status === 429 || response.status === 500;
-
-                if (isRateLimitOrServerError && attempt < maxRetries) {
-                    // Tăng thời gian chờ sau mỗi lần thử lại (1s, 2s...)
-                    const delay = Math.pow(2, attempt) * 1000;
-                    await new Promise((resolve) => setTimeout(resolve, delay));
-                    attempt++;
-                    continue;
-                }
-
-                alert(data.error || "Có lỗi xảy ra trong quá trình tạo nội dung.");
-                break;
-            } catch (error) {
-                if (attempt < maxRetries) {
-                    const delay = Math.pow(2, attempt) * 1000;
-                    await new Promise((resolve) => setTimeout(resolve, delay));
-                    attempt++;
-                    continue;
-                }
-                alert("Lỗi kết nối server");
-                break;
-            }
+        if (error) {
+            toast.error(error);
+        } else if (generatedContent) {
+            setContent(generatedContent);
+            addItem({
+                id: Date.now(),
+                title: topic,
+                content: generatedContent
+            });
         }
-        setIsLoading(false);
     };
 
     const copyToClipboard = () => {
